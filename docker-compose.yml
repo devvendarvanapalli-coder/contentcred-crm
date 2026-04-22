@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: contentcred
+      POSTGRES_PASSWORD: contentcred123
+      POSTGRES_DB: contentcred_crm
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"   # 5433 to avoid clash with OpenHire on 5432
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../Dockerfile.backend
+    restart: always
+    env_file: .env
+    depends_on:
+      - db
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend
+    restart: always
+    ports:
+      - "3001:80"     # 3001 to avoid clash with OpenHire on 3000
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

@@ -1,0 +1,22 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+sqlalchemy==2.0.29
+psycopg2-binary==2.9.9
+pydantic==2.7.1
+pydantic-settings==2.2.1
+apscheduler==3.10.4
+
+# Scrapers
+playwright==1.43.0
+aiohttp==3.9.5
+beautifulsoup4==4.12.3
+fake-useragent==1.5.1
+
+# Spotify / YouTube
+requests==2.31.0
+
+# Email
+dnspython==2.6.1
+
+# Utils
+python-dotenv==1.0.1
