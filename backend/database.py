@@ -25,12 +25,12 @@ class Settings(BaseSettings):
     TIKTOK_SESSION_ID: str = ""
 
     # Gmail SMTP for cold outreach
-    GMAIL_ADDRESS: str = "devvendarvanapalli@gmail.com"
+    GMAIL_ADDRESS: str = "team.contentcred@gmail.com"
     GMAIL_APP_PASSWORD: str = ""
 
     # Sender identity
     SENDER_NAME: str = "Devvendar"
-    REPLY_TO_EMAIL: str = "devvendarvanapalli@gmail.com"
+    REPLY_TO_EMAIL: str = "team.contentcred@gmail.com"
 
     # Calendly
     CALENDLY_LINK: str = (
