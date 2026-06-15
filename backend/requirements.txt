@@ -20,3 +20,8 @@ dnspython==2.6.1
 
 # Utils
 python-dotenv==1.0.1
+
+# MediThread CRM auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9

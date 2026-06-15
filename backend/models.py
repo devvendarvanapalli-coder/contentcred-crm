@@ -1,29 +1,24 @@
 """
 ContentCred CRM — SQLAlchemy models
-Tracks creators across YouTube, Spotify, Instagram, and TikTok.
+Includes original ContentCred models + MediThread Sales CRM models.
 """
 
 from datetime import datetime, timezone
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime,
-    Text, Float, ForeignKey
+    Text, Float, ForeignKey, Enum
 )
 from sqlalchemy.orm import relationship
 from database import Base
+import enum
 
 
 class Creator(Base):
-    """One row per unique creator / prospect."""
     __tablename__ = "creators"
-
     id               = Column(Integer, primary_key=True, index=True)
-
-    # Identity
     full_name        = Column(String(200), default="")
     email            = Column(String(200), default="", index=True)
-    persona          = Column(String(50), default="")     # musician | video_creator | personal_brand
-
-    # Platform handles
+    persona          = Column(String(50), default="")
     youtube_channel  = Column(String(300), default="")
     youtube_handle   = Column(String(100), default="")
     spotify_profile  = Column(String(300), default="")
@@ -31,113 +26,190 @@ class Creator(Base):
     tiktok_handle    = Column(String(100), default="")
     twitter_handle   = Column(String(100), default="")
     website          = Column(String(300), default="")
-
-    # Audience metrics (refreshed on each scrape hit)
     youtube_subs     = Column(Integer, default=0)
     monthly_views    = Column(Integer, default=0)
-    spotify_monthly  = Column(Integer, default=0)   # monthly listeners
+    spotify_monthly  = Column(Integer, default=0)
     instagram_followers = Column(Integer, default=0)
     tiktok_followers = Column(Integer, default=0)
-
-    # Content info
-    niche            = Column(String(200), default="")    # e.g. "Hip-Hop", "Finance", "Travel"
-    content_type     = Column(String(100), default="")    # e.g. "Short-form", "Long-form", "Podcast"
-    primary_platform = Column(String(50), default="")     # youtube | spotify | instagram | tiktok
+    niche            = Column(String(200), default="")
+    content_type     = Column(String(100), default="")
+    primary_platform = Column(String(50), default="")
     posting_frequency = Column(String(50), default="")
-
-    # Scraper metadata
-    source           = Column(String(50), default="")     # YouTube | Spotify | Instagram | TikTok
+    source           = Column(String(50), default="")
     scraped_at       = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-
-    # CRM state
     status           = Column(String(50), default="New")
-    # New → Contacted → Replied → Interested → Not Interested → Closed
     notes            = Column(Text, default="")
-
     created_at       = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at       = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                               onupdate=lambda: datetime.now(timezone.utc))
-
-    # Relationships
     enrollments      = relationship("SequenceEnrollment", back_populates="creator")
     email_logs       = relationship("EmailLog", back_populates="creator")
     dm_logs          = relationship("DmLog", back_populates="creator")
 
 
 class ScraperRun(Base):
-    """Tracks each daily scrape job."""
     __tablename__ = "scraper_runs"
-
     id               = Column(Integer, primary_key=True, index=True)
     started_at       = Column(DateTime)
     completed_at     = Column(DateTime, nullable=True)
-    status           = Column(String(20), default="running")  # running | completed | failed
+    status           = Column(String(20), default="running")
     creators_found   = Column(Integer, default=0)
     creators_added   = Column(Integer, default=0)
-    source_breakdown = Column(Text, default="{}")             # JSON string
+    source_breakdown = Column(Text, default="{}")
     error_message    = Column(Text, nullable=True)
 
 
 class SequenceEnrollment(Base):
-    """Tracks where each creator is in the outreach sequence."""
     __tablename__ = "sequence_enrollments"
-
     id               = Column(Integer, primary_key=True, index=True)
     creator_id       = Column(Integer, ForeignKey("creators.id"), index=True)
-
-    channel          = Column(String(20), default="email")    # email | instagram
+    channel          = Column(String(20), default="email")
     status           = Column(String(20), default="active")
-    # active | paused | completed | unsubscribed | replied
-
-    current_step     = Column(Integer, default=0)             # 0-based step index
+    current_step     = Column(Integer, default=0)
     next_send_at     = Column(DateTime, nullable=True)
-
     enrolled_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at       = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                               onupdate=lambda: datetime.now(timezone.utc))
-
     creator          = relationship("Creator", back_populates="enrollments")
 
 
 class EmailLog(Base):
-    """Per-email tracking record."""
     __tablename__ = "email_logs"
-
     id               = Column(Integer, primary_key=True, index=True)
     creator_id       = Column(Integer, ForeignKey("creators.id"), index=True)
     tracking_id      = Column(String(64), unique=True, index=True)
-
     step             = Column(Integer, default=0)
     subject          = Column(String(500), default="")
     sent_at          = Column(DateTime, nullable=True)
-
     opened           = Column(Boolean, default=False)
     opened_at        = Column(DateTime, nullable=True)
     open_count       = Column(Integer, default=0)
-
     replied          = Column(Boolean, default=False)
     replied_at       = Column(DateTime, nullable=True)
-
     bounced          = Column(Boolean, default=False)
     unsubscribed     = Column(Boolean, default=False)
-
     creator          = relationship("Creator", back_populates="email_logs")
 
 
 class DmLog(Base):
-    """Per-DM tracking record (Instagram / TikTok)."""
     __tablename__ = "dm_logs"
-
     id               = Column(Integer, primary_key=True, index=True)
     creator_id       = Column(Integer, ForeignKey("creators.id"), index=True)
-
     platform         = Column(String(20), default="instagram")
     step             = Column(Integer, default=0)
     message_preview  = Column(String(300), default="")
     sent_at          = Column(DateTime, nullable=True)
-
     seen             = Column(Boolean, default=False)
     replied          = Column(Boolean, default=False)
     replied_at       = Column(DateTime, nullable=True)
-
     creator          = relationship("Creator", back_populates="dm_logs")
+
+
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    sales_rep = "sales_rep"
+
+
+class SalesUser(Base):
+    __tablename__ = "sales_users"
+    id           = Column(Integer, primary_key=True, index=True)
+    name         = Column(String(200), nullable=False)
+    email        = Column(String(200), unique=True, index=True, nullable=False)
+    phone        = Column(String(20), default="")
+    password_hash = Column(String(256), nullable=False)
+    role         = Column(String(20), default=UserRole.sales_rep)
+    territory    = Column(String(200), default="")
+    is_active    = Column(Boolean, default=True)
+    created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    leads        = relationship("MedLead", back_populates="assigned_rep")
+    visits       = relationship("SalesVisit", back_populates="rep")
+    gps_logs     = relationship("GPSLog", back_populates="rep")
+
+
+class LeadStatus(str, enum.Enum):
+    new        = "New"
+    contacted  = "Contacted"
+    interested = "Interested"
+    demo_done  = "Demo Done"
+    order_placed = "Order Placed"
+    lost       = "Lost"
+
+
+class MedLead(Base):
+    __tablename__ = "med_leads"
+    id              = Column(Integer, primary_key=True, index=True)
+    rep_id          = Column(Integer, ForeignKey("sales_users.id"), index=True)
+    hospital_name   = Column(String(300), nullable=False)
+    contact_person  = Column(String(200), default="")
+    designation     = Column(String(200), default="")
+    phone           = Column(String(20), default="")
+    email           = Column(String(200), default="")
+    address         = Column(Text, default="")
+    city            = Column(String(100), default="")
+    state           = Column(String(100), default="")
+    pincode         = Column(String(10), default="")
+    hospital_type   = Column(String(50), default="")
+    specialty       = Column(String(200), default="")
+    bed_count       = Column(Integer, default=0)
+    monthly_suture_usage = Column(String(100), default="")
+    current_supplier = Column(String(200), default="")
+    products_interested = Column(Text, default="")
+    status          = Column(String(50), default=LeadStatus.new)
+    priority        = Column(String(20), default="Medium")
+    notes           = Column(Text, default="")
+    created_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                             onupdate=lambda: datetime.now(timezone.utc))
+    assigned_rep    = relationship("SalesUser", back_populates="leads")
+    visits          = relationship("SalesVisit", back_populates="lead")
+    orders          = relationship("SalesOrder", back_populates="lead")
+
+
+class SalesVisit(Base):
+    __tablename__ = "sales_visits"
+    id          = Column(Integer, primary_key=True, index=True)
+    rep_id      = Column(Integer, ForeignKey("sales_users.id"), index=True)
+    lead_id     = Column(Integer, ForeignKey("med_leads.id"), index=True)
+    visit_date  = Column(DateTime, nullable=False)
+    purpose     = Column(String(200), default="")
+    outcome     = Column(String(200), default="")
+    next_followup = Column(DateTime, nullable=True)
+    notes       = Column(Text, default="")
+    latitude    = Column(Float, nullable=True)
+    longitude   = Column(Float, nullable=True)
+    location_state = Column(String(100), default="")
+    created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    rep         = relationship("SalesUser", back_populates="visits")
+    lead        = relationship("MedLead", back_populates="visits")
+
+
+class SalesOrder(Base):
+    __tablename__ = "sales_orders"
+    id             = Column(Integer, primary_key=True, index=True)
+    rep_id         = Column(Integer, ForeignKey("sales_users.id"), index=True)
+    lead_id        = Column(Integer, ForeignKey("med_leads.id"), index=True)
+    order_date     = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    invoice_number = Column(String(100), default="")
+    product_details = Column(Text, default="")
+    total_amount   = Column(Float, default=0.0)
+    status         = Column(String(50), default="Pending")
+    payment_status = Column(String(50), default="Unpaid")
+    notes          = Column(Text, default="")
+    created_at     = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at     = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                            onupdate=lambda: datetime.now(timezone.utc))
+    lead           = relationship("MedLead", back_populates="orders")
+
+
+class GPSLog(Base):
+    __tablename__ = "gps_logs"
+    id          = Column(Integer, primary_key=True, index=True)
+    rep_id      = Column(Integer, ForeignKey("sales_users.id"), index=True)
+    latitude    = Column(Float, nullable=False)
+    longitude   = Column(Float, nullable=False)
+    accuracy    = Column(Float, nullable=True)
+    state       = Column(String(100), default="")
+    city        = Column(String(100), default="")
+    address     = Column(Text, default="")
+    logged_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    rep         = relationship("SalesUser", back_populates="gps_logs")

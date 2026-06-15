@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from scheduler import start_scheduler
 from routers import leads, analytics, sequences
+from routers import auth as auth_router, med_leads, gps as gps_router
 
 
 @asynccontextmanager
@@ -35,6 +36,9 @@ app.add_middleware(
 app.include_router(leads.router)
 app.include_router(analytics.router)
 app.include_router(sequences.router)
+app.include_router(auth_router.router)
+app.include_router(med_leads.router)
+app.include_router(gps_router.router)
 
 
 @app.get("/health")
