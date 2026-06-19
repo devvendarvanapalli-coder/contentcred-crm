@@ -1,5 +1,11 @@
 import { motion } from "framer-motion";
 
+const cache = {};
+function getMotionEl(tag) {
+  if (!cache[tag]) cache[tag] = motion.create(tag);
+  return cache[tag];
+}
+
 export default function FadeIn({
   children,
   delay = 0,
@@ -10,7 +16,7 @@ export default function FadeIn({
   className,
   style,
 }) {
-  const MotionEl = motion[as] || motion.div;
+  const MotionEl = getMotionEl(as);
   return (
     <MotionEl
       className={className}

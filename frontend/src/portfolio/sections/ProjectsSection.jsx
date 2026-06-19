@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import FadeIn from "../components/FadeIn";
 import LiveProjectButton from "../components/LiveProjectButton";
+import ContactButton from "../components/ContactButton";
 
 const PROJECTS = [
   {
@@ -204,6 +205,31 @@ export default function ProjectsSection() {
             </div>
           </FadeIn>
         ))}
+      </div>
+
+      {/* Contact anchor */}
+      <div id="contact" className="mt-20 sm:mt-28 md:mt-32 flex flex-col items-center gap-6 sm:gap-8">
+        <FadeIn delay={0} y={30}>
+          <h2
+            className="hero-heading font-black uppercase leading-none tracking-tight text-center"
+            style={{ fontSize: "clamp(2.5rem, 10vw, 120px)" }}
+          >
+            Let&apos;s Work
+          </h2>
+        </FadeIn>
+        <FadeIn delay={0.15} y={20}>
+          <p
+            className="font-light uppercase tracking-wide text-center"
+            style={{ color: "#D7E2EA", fontSize: "clamp(0.85rem, 1.4vw, 1.2rem)", opacity: 0.6 }}
+          >
+            Have a project in mind? Let&apos;s build something incredible together.
+          </p>
+        </FadeIn>
+        <FadeIn delay={0.3} y={20}>
+          <a href="mailto:jack@example.com" style={{ textDecoration: "none" }}>
+            <ContactButton />
+          </a>
+        </FadeIn>
       </div>
     </section>
   );
