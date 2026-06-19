@@ -1,7 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
   @apply bg-gray-50 text-gray-900;
+}
+
+/* Portfolio page resets applied scoped via .portfolio-root */
+.portfolio-root,
+.portfolio-root *,
+.portfolio-root *::before,
+.portfolio-root *::after {
+  box-sizing: border-box;
+}
+
+.portfolio-root {
+  margin: 0;
+  padding: 0;
+  background: #0C0C0C;
+  font-family: 'Kanit', sans-serif;
+}
+
+.hero-heading {
+  background: linear-gradient(180deg, #646973 0%, #BBCCD7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: block;
 }
