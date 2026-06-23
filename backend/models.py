@@ -213,3 +213,70 @@ class GPSLog(Base):
     address     = Column(Text, default="")
     logged_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     rep         = relationship("SalesUser", back_populates="gps_logs")
+
+
+# ── GMP (Good Manufacturing Practice) Models ─────────────────────────────────
+
+class RawMaterial(Base):
+    __tablename__ = "gmp_raw_materials"
+    id                = Column(Integer, primary_key=True, index=True)
+    name              = Column(String(300), nullable=False)
+    material_code     = Column(String(100), unique=True, index=True, nullable=False)
+    supplier          = Column(String(300), default="")
+    unit              = Column(String(50), default="")
+    quantity_in_stock = Column(Float, default=0.0)
+    reorder_level     = Column(Float, default=0.0)
+    expiry_date       = Column(DateTime, nullable=True)
+    status            = Column(String(50), default="Available")
+    created_by        = Column(Integer, ForeignKey("sales_users.id"), nullable=True)
+    created_at        = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    creator           = relationship("SalesUser", foreign_keys=[created_by])
+
+
+class ProductionBatch(Base):
+    __tablename__ = "gmp_production_batches"
+    id                  = Column(Integer, primary_key=True, index=True)
+    batch_number        = Column(String(100), unique=True, index=True, nullable=False)
+    product_name        = Column(String(300), nullable=False)
+    product_type        = Column(String(50), default="Absorbable")
+    raw_materials_used  = Column(Text, default="[]")
+    quantity_produced   = Column(Float, default=0.0)
+    start_date          = Column(DateTime, nullable=True)
+    end_date            = Column(DateTime, nullable=True)
+    status              = Column(String(50), default="In Progress")
+    notes               = Column(Text, default="")
+    created_by          = Column(Integer, ForeignKey("sales_users.id"), nullable=True)
+    created_at          = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    creator             = relationship("SalesUser", foreign_keys=[created_by])
+    qc_tests            = relationship("QCTest", back_populates="batch")
+    packaging_records   = relationship("PackagingRecord", back_populates="batch")
+
+
+class QCTest(Base):
+    __tablename__ = "gmp_qc_tests"
+    id              = Column(Integer, primary_key=True, index=True)
+    batch_id        = Column(Integer, ForeignKey("gmp_production_batches.id"), index=True)
+    test_name       = Column(String(300), nullable=False)
+    test_date       = Column(DateTime, nullable=True)
+    result          = Column(String(20), default="Pending")
+    tested_by       = Column(Integer, ForeignKey("sales_users.id"), nullable=True)
+    observations    = Column(Text, default="")
+    attachments_note = Column(Text, default="")
+    created_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    batch           = relationship("ProductionBatch", back_populates="qc_tests")
+    tester          = relationship("SalesUser", foreign_keys=[tested_by])
+
+
+class PackagingRecord(Base):
+    __tablename__ = "gmp_packaging_records"
+    id               = Column(Integer, primary_key=True, index=True)
+    batch_id         = Column(Integer, ForeignKey("gmp_production_batches.id"), index=True)
+    packaging_date   = Column(DateTime, nullable=True)
+    units_packaged   = Column(Integer, default=0)
+    label_verified   = Column(Boolean, default=False)
+    sterility_checked = Column(Boolean, default=False)
+    packager_name    = Column(String(200), default="")
+    status           = Column(String(50), default="Pending")
+    notes            = Column(Text, default="")
+    created_at       = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    batch            = relationship("ProductionBatch", back_populates="packaging_records")
