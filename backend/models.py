@@ -280,3 +280,80 @@ class PackagingRecord(Base):
     notes            = Column(Text, default="")
     created_at       = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     batch            = relationship("ProductionBatch", back_populates="packaging_records")
+
+
+# ── Accounting Models ──────────────────────────────────────────────────────────
+
+class Party(Base):
+    __tablename__ = "acc_parties"
+    id              = Column(Integer, primary_key=True, index=True)
+    name            = Column(String(300), nullable=False, index=True)
+    party_type      = Column(String(20), default="Customer")  # Customer / Supplier
+    gstin           = Column(String(20), default="")
+    address         = Column(Text, default="")
+    city            = Column(String(100), default="")
+    state           = Column(String(100), default="")
+    pincode         = Column(String(10), default="")
+    phone           = Column(String(20), default="")
+    email           = Column(String(200), default="")
+    opening_balance = Column(Float, default=0.0)
+    created_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    invoices        = relationship("AccInvoice", back_populates="party")
+    purchases       = relationship("AccPurchase", back_populates="party")
+    payments        = relationship("AccPayment", back_populates="party")
+
+
+class AccInvoice(Base):
+    __tablename__ = "acc_invoices"
+    id              = Column(Integer, primary_key=True, index=True)
+    invoice_number  = Column(String(100), unique=True, index=True)
+    party_id        = Column(Integer, ForeignKey("acc_parties.id"), index=True)
+    invoice_date    = Column(DateTime, nullable=True)
+    due_date        = Column(DateTime, nullable=True)
+    line_items      = Column(Text, default="[]")  # JSON
+    subtotal        = Column(Float, default=0.0)
+    cgst            = Column(Float, default=0.0)
+    sgst            = Column(Float, default=0.0)
+    igst            = Column(Float, default=0.0)
+    total_amount    = Column(Float, default=0.0)
+    payment_status  = Column(String(20), default="Unpaid")  # Unpaid/Partial/Paid
+    notes           = Column(Text, default="")
+    created_by      = Column(Integer, ForeignKey("sales_users.id"), nullable=True)
+    created_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    party           = relationship("Party", back_populates="invoices")
+    creator         = relationship("SalesUser", foreign_keys=[created_by])
+    payments        = relationship("AccPayment", back_populates="invoice")
+
+
+class AccPurchase(Base):
+    __tablename__ = "acc_purchases"
+    id           = Column(Integer, primary_key=True, index=True)
+    po_number    = Column(String(100), unique=True, index=True)
+    party_id     = Column(Integer, ForeignKey("acc_parties.id"), index=True)
+    po_date      = Column(DateTime, nullable=True)
+    line_items   = Column(Text, default="[]")  # JSON
+    subtotal     = Column(Float, default=0.0)
+    total_gst    = Column(Float, default=0.0)
+    total_amount = Column(Float, default=0.0)
+    status       = Column(String(20), default="Draft")  # Draft/Approved/Received
+    created_by   = Column(Integer, ForeignKey("sales_users.id"), nullable=True)
+    created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    party        = relationship("Party", back_populates="purchases")
+    creator      = relationship("SalesUser", foreign_keys=[created_by])
+
+
+class AccPayment(Base):
+    __tablename__ = "acc_payments"
+    id               = Column(Integer, primary_key=True, index=True)
+    party_id         = Column(Integer, ForeignKey("acc_parties.id"), index=True)
+    invoice_id       = Column(Integer, ForeignKey("acc_invoices.id"), nullable=True)
+    payment_date     = Column(DateTime, nullable=True)
+    amount           = Column(Float, default=0.0)
+    payment_mode     = Column(String(20), default="NEFT")  # Cash/NEFT/UPI/Cheque
+    reference_number = Column(String(200), default="")
+    notes            = Column(Text, default="")
+    created_by       = Column(Integer, ForeignKey("sales_users.id"), nullable=True)
+    created_at       = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    party            = relationship("Party", back_populates="payments")
+    invoice          = relationship("AccInvoice", back_populates="payments")
+    creator          = relationship("SalesUser", foreign_keys=[created_by])

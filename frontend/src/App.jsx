@@ -9,6 +9,25 @@ import Sequences from "./pages/Sequences";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 
+// GMP routes
+import GMPLayout from "./pages/gmp/GMPLayout";
+import GMPDashboard from "./pages/gmp/Dashboard";
+import Materials from "./pages/gmp/Materials";
+import Batches from "./pages/gmp/Batches";
+import QualityControl from "./pages/gmp/QualityControl";
+import Packaging from "./pages/gmp/Packaging";
+import GMPReports from "./pages/gmp/Reports";
+
+// Accounting routes
+import AccLayout from "./pages/acc/AccLayout";
+import AccDashboard from "./pages/acc/Dashboard";
+import Parties from "./pages/acc/Parties";
+import Invoices from "./pages/acc/Invoices";
+import Purchases from "./pages/acc/Purchases";
+import Payments from "./pages/acc/Payments";
+import Ledger from "./pages/acc/Ledger";
+import GSTReports from "./pages/acc/GSTReports";
+
 // MediThread CRM routes
 import Login from "./pages/med/Login";
 import MedLayout from "./components/med/MedLayout";
@@ -90,10 +109,61 @@ function ContentCredApp() {
   );
 }
 
+function GMPApp() {
+  return (
+    <AuthProvider>
+      <Routes>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="*" element={
+          <RequireAuth>
+            <GMPLayout>
+              <Routes>
+                <Route path="dashboard" element={<GMPDashboard />} />
+                <Route path="materials" element={<Materials />} />
+                <Route path="batches" element={<Batches />} />
+                <Route path="qc" element={<QualityControl />} />
+                <Route path="packaging" element={<Packaging />} />
+                <Route path="reports" element={<GMPReports />} />
+              </Routes>
+            </GMPLayout>
+          </RequireAuth>
+        } />
+      </Routes>
+    </AuthProvider>
+  );
+}
+
+function AccApp() {
+  return (
+    <AuthProvider>
+      <Routes>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="*" element={
+          <RequireAuth>
+            <AccLayout>
+              <Routes>
+                <Route path="dashboard" element={<AccDashboard />} />
+                <Route path="parties" element={<Parties />} />
+                <Route path="invoices" element={<Invoices />} />
+                <Route path="purchases" element={<Purchases />} />
+                <Route path="payments" element={<Payments />} />
+                <Route path="ledger" element={<Ledger />} />
+                <Route path="gst" element={<GSTReports />} />
+              </Routes>
+            </AccLayout>
+          </RequireAuth>
+        } />
+      </Routes>
+    </AuthProvider>
+  );
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/med/*" element={<MedApp />} />
+      <Route path="/gmp/*" element={<GMPApp />} />
+      <Route path="/acc/*" element={<AccApp />} />
       <Route path="/*" element={<ContentCredApp />} />
     </Routes>
   );
