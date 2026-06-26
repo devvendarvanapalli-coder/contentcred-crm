@@ -54,3 +54,22 @@ export const getCampaignAnalysis= (cid) => api.get(`/campaigns/${cid}/analysis`)
 export const getDiscover       = () => api.get("/campaigns/discover/list").then(r => r.data);
 export const getPublicCampaign = (token) => api.get(`/campaigns/public/${token}`).then(r => r.data);
 export const publicSubmit      = (token, data) => api.post(`/campaigns/public/${token}/submit`, data).then(r => r.data);
+export const getClipperStatus  = (email) => api.get("/public/status", { params: { email } }).then(r => r.data);
+
+// ── Budget top-up ─────────────────────────────────────────────────
+export const topupBudget = (cid, amount) => api.post(`/campaigns/${cid}/topup`, { amount }).then(r => r.data);
+
+// ── Clone ─────────────────────────────────────────────────────────
+export const cloneCampaign = (cid) => api.post(`/campaigns/${cid}/clone`).then(r => r.data);
+
+// ── Payout management ─────────────────────────────────────────────
+export const getPayoutQueue   = (cid) => api.get(`/campaigns/${cid}/payout-queue`).then(r => r.data);
+export const createPayout     = (cid, notes) => api.post(`/campaigns/${cid}/payout`, { notes }).then(r => r.data);
+export const getPayoutBatches = (cid) => api.get(`/campaigns/${cid}/payout-batches`).then(r => r.data);
+
+// ── CSV Export ────────────────────────────────────────────────────
+export const exportCsv = (cid) => api.get(`/campaigns/${cid}/export.csv`, { responseType: "blob" }).then(r => r);
+
+// ── View refresh ──────────────────────────────────────────────────
+export const fetchClipViews  = (cid, clipId) => api.post(`/campaigns/${cid}/submissions/${clipId}/fetch-views`).then(r => r.data);
+export const refreshAllViews = (cid) => api.post(`/campaigns/${cid}/refresh-views`).then(r => r.data);

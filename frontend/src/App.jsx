@@ -9,6 +9,7 @@ import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
 import Discover from "./pages/Discover";
 import SubmitPage from "./pages/SubmitPage";
+import ClipperStatus from "./pages/ClipperStatus";
 
 // Public routes (no sidebar)
 function PublicLayout({ children }) {
@@ -21,6 +22,7 @@ export default function App() {
       {/* Public routes — no sidebar */}
       <Route path="/discover" element={<PublicLayout><Discover /></PublicLayout>} />
       <Route path="/submit/:token" element={<PublicLayout><SubmitPage /></PublicLayout>} />
+      <Route path="/status" element={<PublicLayout><ClipperStatus /></PublicLayout>} />
 
       {/* Admin routes — with sidebar */}
       <Route path="/*" element={

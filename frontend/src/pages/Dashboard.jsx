@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { getOverview, triggerScrape, triggerOutreach } from "../api/client";
-import { Users, Mail, MessageCircle, TrendingUp, Play, Zap } from "lucide-react";
+import { getOverview, triggerScrape, triggerOutreach, getCampaigns } from "../api/client";
+import { Users, Mail, MessageCircle, TrendingUp, Play, Zap, Gift, DollarSign, Clock, Eye } from "lucide-react";
 import { useState } from "react";
 
 function StatCard({ label, value, sub, icon: Icon, color }) {
@@ -18,8 +18,16 @@ function StatCard({ label, value, sub, icon: Icon, color }) {
   );
 }
 
+function fv(n) {
+  if (!n) return "0";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
 export default function Dashboard() {
   const { data, isLoading } = useQuery({ queryKey: ["overview"], queryFn: getOverview, refetchInterval: 30000 });
+  const { data: campaigns = [] } = useQuery({ queryKey: ["campaigns"], queryFn: getCampaigns, refetchInterval: 60000 });
   const [scrapeLoading, setScrapeLoading] = useState(false);
   const [outreachLoading, setOutreachLoading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -116,6 +124,25 @@ export default function Dashboard() {
           <StatCard label="Reply Rate"  value={`${d.instagram_dm?.reply_rate}%`} icon={TrendingUp} color="bg-yellow-500" />
         </div>
       </div>
+
+      {/* Content Rewards stats */}
+      {campaigns.length > 0 && (() => {
+        const activeCampaigns = campaigns.filter(c => c.status === "active").length;
+        const totalSpent      = campaigns.reduce((s, c) => s + c.budget_spent, 0);
+        const totalPending    = campaigns.reduce((s, c) => s + c.pending_count, 0);
+        const totalViews      = campaigns.reduce((s, c) => s + c.total_views, 0);
+        return (
+          <div>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Content Rewards</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard label="Active Campaigns" value={activeCampaigns}              icon={Gift}       color="bg-brand-500" />
+              <StatCard label="Total Paid Out"   value={`$${totalSpent.toFixed(2)}`} icon={DollarSign} color="bg-green-500" />
+              <StatCard label="Pending Reviews"  value={totalPending}                 icon={Clock}      color={totalPending > 0 ? "bg-yellow-500" : "bg-gray-400"} />
+              <StatCard label="Total Views"      value={fv(totalViews)}              icon={Eye}        color="bg-blue-500" />
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

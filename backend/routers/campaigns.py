@@ -10,18 +10,23 @@ Implements the full Whop Content Rewards feature set:
   - Leaderboard, analysis, and public discovery endpoints
 """
 
+import csv
+import io
 import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
-from models import Campaign, Clipper, ClipSubmission, ViewSnapshot
+from models import Campaign, Clipper, ClipSubmission, ViewSnapshot, PayoutBatch
 from bot_detection import analyze as bot_analyze
+from outreach.email_sender import send_clip_approved, send_clip_rejected
+import view_fetcher
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
@@ -579,6 +584,10 @@ def approve_submission(campaign_id: int, clip_id: int, db: Session = Depends(get
 
     db.commit()
     db.refresh(clip)
+
+    if clipper and clipper.email:
+        send_clip_approved(clipper.email, clipper.name, campaign.name, earnings, clip.url)
+
     return _enrich_clip(clip, db)
 
 
@@ -594,13 +603,18 @@ def reject_submission(campaign_id: int, clip_id: int, data: RejectRequest, db: S
     clip.rejection_reason = data.reason
     clip.ban_clipper = data.ban_clipper or False
 
-    if data.ban_clipper:
-        clipper = db.query(Clipper).filter(Clipper.id == clip.clipper_id).first()
-        if clipper:
-            clipper.is_banned = True
+    clipper = db.query(Clipper).filter(Clipper.id == clip.clipper_id).first()
+    if data.ban_clipper and clipper:
+        clipper.is_banned = True
+
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
 
     db.commit()
     db.refresh(clip)
+
+    if clipper and clipper.email and campaign:
+        send_clip_rejected(clipper.email, clipper.name, campaign.name, data.reason, clip.url)
+
     return _enrich_clip(clip, db)
 
 
@@ -750,6 +764,269 @@ def public_campaign(token: str, db: Session = Depends(get_db)):
         "allowed_platforms": platforms,
         "end_date": c.end_date,
     }
+
+
+# ── Budget top-up ─────────────────────────────────────────────────
+
+class TopupRequest(BaseModel):
+    amount: float
+
+
+@router.post("/{campaign_id}/topup", response_model=CampaignOut)
+def topup_budget(campaign_id: int, data: TopupRequest, db: Session = Depends(get_db)):
+    c = db.query(Campaign).options(joinedload(Campaign.clippers)).filter(Campaign.id == campaign_id).first()
+    if not c:
+        raise HTTPException(404, "Campaign not found")
+    if data.amount <= 0:
+        raise HTTPException(400, "Amount must be positive")
+    c.budget = round(c.budget + data.amount, 2)
+    db.commit()
+    db.refresh(c)
+    return _enrich_campaign(c, db)
+
+
+# ── Campaign clone ────────────────────────────────────────────────
+
+@router.post("/{campaign_id}/clone", response_model=CampaignOut)
+def clone_campaign(campaign_id: int, db: Session = Depends(get_db)):
+    import uuid as _uuid
+    src = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not src:
+        raise HTTPException(404, "Campaign not found")
+    clone = Campaign(
+        name=f"{src.name} (Copy)",
+        content_type=src.content_type,
+        category=src.category,
+        description=src.description,
+        guidelines=src.guidelines,
+        tutorial_video_url=src.tutorial_video_url,
+        status="paused",
+        allowed_platforms=src.allowed_platforms,
+        budget=src.budget,
+        budget_spent=0.0,
+        reward_per_1k_views=src.reward_per_1k_views,
+        flat_fee=src.flat_fee,
+        min_payout=src.min_payout,
+        max_payout_per_submission=src.max_payout_per_submission,
+        auto_approve_hours=src.auto_approve_hours,
+        submission_token=_uuid.uuid4().hex,
+    )
+    db.add(clone)
+    db.commit()
+    db.refresh(clone)
+    return _enrich_campaign(clone, db)
+
+
+# ── Payout management ─────────────────────────────────────────────
+
+@router.get("/{campaign_id}/payout-queue")
+def payout_queue(campaign_id: int, db: Session = Depends(get_db)):
+    clips = (
+        db.query(ClipSubmission)
+        .filter(
+            ClipSubmission.campaign_id == campaign_id,
+            ClipSubmission.approval_status == "approved",
+            ClipSubmission.payout_status == "unpaid",
+            ClipSubmission.earnings > 0,
+        )
+        .order_by(ClipSubmission.approved_at.asc())
+        .all()
+    )
+    rows = []
+    for clip in clips:
+        clipper = db.query(Clipper).filter(Clipper.id == clip.clipper_id).first()
+        rows.append({
+            "clip_id": clip.id,
+            "clipper_id": clip.clipper_id,
+            "clipper_name": clipper.name if clipper else "",
+            "clipper_email": clipper.email if clipper else "",
+            "url": clip.url,
+            "platform": clip.platform,
+            "views_at_approval": clip.views_at_approval,
+            "earnings": clip.earnings,
+            "approved_at": clip.approved_at,
+        })
+    total = round(sum(r["earnings"] for r in rows), 2)
+    return {"clips": rows, "total_amount": total, "clip_count": len(rows)}
+
+
+class PayoutRequest(BaseModel):
+    notes: Optional[str] = ""
+
+
+@router.post("/{campaign_id}/payout")
+def create_payout(campaign_id: int, data: PayoutRequest, db: Session = Depends(get_db)):
+    clips = (
+        db.query(ClipSubmission)
+        .filter(
+            ClipSubmission.campaign_id == campaign_id,
+            ClipSubmission.approval_status == "approved",
+            ClipSubmission.payout_status == "unpaid",
+            ClipSubmission.earnings > 0,
+        )
+        .all()
+    )
+    if not clips:
+        raise HTTPException(400, "No unpaid approved clips found")
+
+    total = round(sum(c.earnings for c in clips), 2)
+    clipper_ids = set(c.clipper_id for c in clips)
+
+    batch = PayoutBatch(
+        campaign_id=campaign_id,
+        total_amount=total,
+        clip_count=len(clips),
+        clipper_count=len(clipper_ids),
+        notes=data.notes or "",
+    )
+    db.add(batch)
+    db.flush()
+
+    for clip in clips:
+        clip.payout_status = "paid"
+        clip.payout_batch_id = batch.id
+
+    db.commit()
+    return {
+        "ok": True,
+        "batch_id": batch.id,
+        "total_amount": total,
+        "clip_count": len(clips),
+        "clipper_count": len(clipper_ids),
+    }
+
+
+@router.get("/{campaign_id}/payout-batches")
+def list_payout_batches(campaign_id: int, db: Session = Depends(get_db)):
+    batches = (
+        db.query(PayoutBatch)
+        .filter(PayoutBatch.campaign_id == campaign_id)
+        .order_by(PayoutBatch.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": b.id,
+            "total_amount": b.total_amount,
+            "clip_count": b.clip_count,
+            "clipper_count": b.clipper_count,
+            "status": b.status,
+            "notes": b.notes,
+            "created_at": b.created_at,
+        }
+        for b in batches
+    ]
+
+
+# ── CSV Export ────────────────────────────────────────────────────
+
+@router.get("/{campaign_id}/export.csv")
+def export_csv(campaign_id: int, db: Session = Depends(get_db)):
+    clippers = (
+        db.query(Clipper)
+        .filter(Clipper.campaign_id == campaign_id)
+        .options(joinedload(Clipper.clips))
+        .all()
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Name", "Email", "TikTok", "Instagram", "YouTube",
+        "Approved Clips", "Total Views", "Total Earnings", "Payout Status", "Banned",
+    ])
+    for clipper in clippers:
+        approved = [c for c in clipper.clips if c.approval_status == "approved"]
+        total_views = sum(c.views_at_approval for c in approved)
+        unpaid = sum(1 for c in approved if c.payout_status == "unpaid")
+        writer.writerow([
+            clipper.name,
+            clipper.email,
+            clipper.tiktok_handle,
+            clipper.instagram_handle,
+            clipper.youtube_handle,
+            len(approved),
+            total_views,
+            f"{clipper.total_earnings:.2f}",
+            "partial" if unpaid > 0 and unpaid < len(approved) else ("unpaid" if unpaid else "paid"),
+            "yes" if clipper.is_banned else "no",
+        ])
+
+    output.seek(0)
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    name_slug = (campaign.name if campaign else "campaign").replace(" ", "_")
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={name_slug}_clippers.csv"},
+    )
+
+
+# ── View refresh (per clip and bulk) ─────────────────────────────
+
+@router.post("/{campaign_id}/submissions/{clip_id}/fetch-views", response_model=ClipOut)
+def fetch_clip_views(campaign_id: int, clip_id: int, db: Session = Depends(get_db)):
+    clip = db.query(ClipSubmission).filter(
+        ClipSubmission.id == clip_id, ClipSubmission.campaign_id == campaign_id
+    ).first()
+    if not clip:
+        raise HTTPException(404, "Submission not found")
+
+    result = view_fetcher.fetch_views(clip.platform, clip.url)
+    if result is None:
+        raise HTTPException(422, f"View fetching not supported for {clip.platform} or failed")
+
+    views, eng = result
+    clip.current_views = views
+    if eng.get("likes"):    clip.likes    = eng["likes"]
+    if eng.get("comments"): clip.comments = eng["comments"]
+    if eng.get("shares"):   clip.shares   = eng["shares"]
+    clip.last_checked_at = datetime.now(timezone.utc)
+
+    db.add(ViewSnapshot(clip_id=clip.id, views=views))
+    db.flush()
+    _run_bot(clip, db)
+
+    if clip.bot_flag == "botted" and clip.approval_status == "pending":
+        clip.approval_status = "flagged"
+
+    db.commit()
+    db.refresh(clip)
+    return _enrich_clip(clip, db)
+
+
+@router.post("/{campaign_id}/refresh-views")
+def refresh_all_views(campaign_id: int, db: Session = Depends(get_db)):
+    """Refresh views for all approved and pending clips in this campaign."""
+    clips = (
+        db.query(ClipSubmission)
+        .filter(
+            ClipSubmission.campaign_id == campaign_id,
+            ClipSubmission.approval_status.in_(["pending", "approved"]),
+            ClipSubmission.platform.in_(["youtube", "tiktok"]),
+        )
+        .all()
+    )
+    updated = 0
+    failed = 0
+    for clip in clips:
+        result = view_fetcher.fetch_views(clip.platform, clip.url)
+        if result is None:
+            failed += 1
+            continue
+        views, eng = result
+        clip.current_views = views
+        if eng.get("likes"):    clip.likes    = eng["likes"]
+        if eng.get("comments"): clip.comments = eng["comments"]
+        clip.last_checked_at = datetime.now(timezone.utc)
+        db.add(ViewSnapshot(clip_id=clip.id, views=views))
+        db.flush()
+        _run_bot(clip, db)
+        if clip.bot_flag == "botted" and clip.approval_status == "pending":
+            clip.approval_status = "flagged"
+        updated += 1
+    db.commit()
+    return {"ok": True, "updated": updated, "failed": failed, "total": len(clips)}
 
 
 @router.post("/public/{token}/submit")

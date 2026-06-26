@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { getCampaigns, createCampaign, updateCampaign, deleteCampaign } from "../api/client";
+import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, cloneCampaign } from "../api/client";
 import {
   Plus, Eye, Users, Scissors, ChevronRight, Pause, Play,
-  Trash2, X, DollarSign, AlertTriangle, Clock, Globe,
+  Trash2, X, DollarSign, AlertTriangle, Clock, Globe, Copy,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -210,6 +210,7 @@ export default function Campaigns() {
   const createMut   = useMutation({ mutationFn: createCampaign, onSuccess: () => { qc.invalidateQueries(["campaigns"]); setShowModal(false); } });
   const toggleMut   = useMutation({ mutationFn: ({ id, status }) => updateCampaign(id, { status }), onSuccess: () => qc.invalidateQueries(["campaigns"]) });
   const deleteMut   = useMutation({ mutationFn: deleteCampaign, onSuccess: () => qc.invalidateQueries(["campaigns"]) });
+  const cloneMut    = useMutation({ mutationFn: cloneCampaign, onSuccess: () => qc.invalidateQueries(["campaigns"]) });
 
   if (isLoading) return <div className="p-8 text-gray-400">Loading...</div>;
 
@@ -354,6 +355,10 @@ export default function Campaigns() {
                   <button onClick={() => { if (confirm(`Delete "${c.name}"?`)) deleteMut.mutate(c.id); }}
                     className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600">
                     <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
+                  <button onClick={() => cloneMut.mutate(c.id)}
+                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800">
+                    <Copy className="w-3.5 h-3.5" /> Clone
                   </button>
                   <span className="ml-auto text-xs text-gray-400">
                     Token: <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{c.submission_token?.slice(0, 8)}…</code>

@@ -6,12 +6,15 @@ import {
   getSubmissions, approveSubmission, rejectSubmission, flagSubmission,
   addClip, updateClipMetrics, deleteClip,
   getLeaderboard, getCampaignAnalysis, updateCampaign,
+  topupBudget, getPayoutQueue, createPayout, getPayoutBatches,
+  exportCsv, refreshAllViews,
 } from "../api/client";
 import {
   ArrowLeft, Plus, Eye, Trash2, ExternalLink, Users, DollarSign,
   TrendingUp, X, AlertTriangle, ShieldCheck, ShieldAlert, Activity,
   BarChart2, ThumbsUp, MessageCircle, Share2, RefreshCw, Check,
-  Clock, Trophy, ChevronDown, ChevronUp, Copy,
+  Clock, Trophy, ChevronDown, ChevronUp, Copy, Download, CreditCard,
+  Wallet, Zap,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 
@@ -630,6 +633,212 @@ function AnalysisTab({ campaignId }) {
   );
 }
 
+// ── Top-up Modal ──────────────────────────────────────────────────
+function TopupModal({ campaignId, onClose, onDone }) {
+  const [amount, setAmount] = useState("");
+  const { mutate, isPending, error } = useMutation({
+    mutationFn: () => topupBudget(campaignId, parseFloat(amount)),
+    onSuccess: () => { onDone(); onClose(); },
+  });
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+            <Wallet className="w-5 h-5 text-green-600" />
+          </div>
+          <h2 className="text-base font-bold text-gray-900">Add Budget</h2>
+        </div>
+        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Amount ($)</label>
+        <input
+          type="number" step="0.01" min="0.01"
+          value={amount} onChange={e => setAmount(e.target.value)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 mb-4"
+          placeholder="100.00"
+        />
+        {error && <p className="text-xs text-red-500 mb-3">{error?.response?.data?.detail || "Failed"}</p>}
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 border border-gray-200 text-gray-600 rounded-lg py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
+          <button
+            onClick={() => { if (!amount || parseFloat(amount) <= 0) return; mutate(); }}
+            disabled={isPending}
+            className="flex-1 bg-green-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+          >
+            {isPending ? "Adding..." : "Add Budget"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Payouts Tab ───────────────────────────────────────────────────
+function PayoutsTab({ campaignId }) {
+  const qc = useQueryClient();
+  const [notes, setNotes] = useState("");
+  const [paying, setPaying] = useState(false);
+
+  const { data: queue, isLoading: qLoading, refetch: refetchQueue } = useQuery({
+    queryKey: ["payout-queue", campaignId],
+    queryFn: () => getPayoutQueue(campaignId),
+  });
+  const { data: batches = [], isLoading: bLoading, refetch: refetchBatches } = useQuery({
+    queryKey: ["payout-batches", campaignId],
+    queryFn: () => getPayoutBatches(campaignId),
+  });
+
+  const payoutMut = useMutation({
+    mutationFn: () => createPayout(campaignId, notes),
+    onSuccess: () => {
+      refetchQueue();
+      refetchBatches();
+      setNotes("");
+      setPaying(false);
+    },
+  });
+
+  const handleExport = async () => {
+    try {
+      const r = await exportCsv(campaignId);
+      const url = window.URL.createObjectURL(r.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `campaign_${campaignId}_clippers.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Export failed");
+    }
+  };
+
+  if (qLoading || bLoading) return <div className="text-gray-400 text-sm py-8 text-center">Loading...</div>;
+
+  const clips = queue?.clips || [];
+  const total = queue?.total_amount || 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Payout queue */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-gray-800">Unpaid Approved Clips</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{clips.length} clips · ${total.toFixed(2)} total owed</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleExport}
+              className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50">
+              <Download className="w-4 h-4" /> Export CSV
+            </button>
+            {clips.length > 0 && !paying && (
+              <button onClick={() => setPaying(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700">
+                <CreditCard className="w-4 h-4" /> Mark as Paid
+              </button>
+            )}
+          </div>
+        </div>
+
+        {paying && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p className="text-sm font-semibold text-amber-800 mb-2">
+              Mark {clips.length} clips as paid (${total.toFixed(2)} total)?
+            </p>
+            <label className="block text-xs text-amber-700 mb-1">Notes (optional)</label>
+            <input
+              value={notes} onChange={e => setNotes(e.target.value)}
+              className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none mb-3"
+              placeholder="e.g. PayPal batch 2024-01-15"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setPaying(false)} className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+              <button onClick={() => payoutMut.mutate()} disabled={payoutMut.isPending}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+                {payoutMut.isPending ? "Processing..." : "Confirm Payout"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {clips.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">No unpaid approved clips</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Clipper</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Post</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Views</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Earnings</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {clips.map(clip => (
+                  <tr key={clip.clip_id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900">{clip.clipper_name}</div>
+                      <div className="text-xs text-gray-400">{clip.clipper_email}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <a href={clip.url} target="_blank" rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline text-xs truncate max-w-xs block">
+                        {clip.platform} — {clip.url.slice(0, 40)}…
+                      </a>
+                    </td>
+                    <td className="px-4 py-3 text-right text-gray-700">{fv(clip.views_at_approval)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-green-600">${clip.earnings.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2 border-gray-200">
+                <tr>
+                  <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-gray-700 text-right">Total</td>
+                  <td className="px-4 py-3 text-right font-bold text-green-600 text-base">${total.toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Payout history */}
+      {batches.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <h3 className="font-semibold text-gray-800 mb-4">Payout History</h3>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">#</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Clips</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Clippers</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {batches.map(b => (
+                <tr key={b.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-gray-400 text-xs">#{b.id}</td>
+                  <td className="px-4 py-3 text-gray-700">{new Date(b.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-right text-gray-700">{b.clip_count}</td>
+                  <td className="px-4 py-3 text-right text-gray-700">{b.clipper_count}</td>
+                  <td className="px-4 py-3 text-right font-bold text-green-600">${b.total_amount.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-xs text-gray-400">{b.notes || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Settings Tab ──────────────────────────────────────────────────
 function SettingsTab({ campaign, campaignId }) {
   const qc = useQueryClient();
@@ -750,6 +959,8 @@ export default function CampaignDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [showAddClipper, setShowAddClipper] = useState(false);
+  const [showTopup, setShowTopup] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState("submissions");
 
   const { data: campaign, isLoading } = useQuery({
@@ -775,10 +986,24 @@ export default function CampaignDetail() {
   const budgetPct = campaign.budget > 0 ? Math.min(100, (campaign.budget_spent / campaign.budget) * 100) : 0;
   const totalSubmissions = campaign.pending_count + campaign.approved_count + campaign.flagged_count + campaign.rejected_count;
 
+  const handleRefreshAll = async () => {
+    setRefreshing(true);
+    try {
+      const r = await refreshAllViews(id);
+      qc.invalidateQueries(["submissions", id]);
+      qc.invalidateQueries(["campaign", id]);
+      alert(`Refreshed ${r.updated} clips (${r.failed} failed)`);
+    } catch {
+      alert("Refresh failed");
+    }
+    setRefreshing(false);
+  };
+
   const TABS = [
     { key: "submissions", label: "Submissions", badge: campaign.pending_count > 0 ? campaign.pending_count : 0 },
     { key: "leaderboard", label: "Leaderboard" },
     { key: "analysis",    label: "Bot Analysis", badge: campaign.flagged_count > 0 ? campaign.flagged_count : 0 },
+    { key: "payouts",     label: "Payouts" },
     { key: "settings",    label: "Settings" },
   ];
 
@@ -786,6 +1011,13 @@ export default function CampaignDetail() {
     <div className="p-8 space-y-6">
       {showAddClipper && (
         <AddClipperModal onClose={() => setShowAddClipper(false)} onAdd={d => addClipperMut.mutate(d)} />
+      )}
+      {showTopup && (
+        <TopupModal
+          campaignId={id}
+          onClose={() => setShowTopup(false)}
+          onDone={() => qc.invalidateQueries(["campaign", id])}
+        />
       )}
 
       {/* Header */}
@@ -810,10 +1042,20 @@ export default function CampaignDetail() {
             <h1 className="text-2xl font-bold text-gray-900">{campaign.name}</h1>
             {campaign.description && <p className="text-gray-500 text-sm mt-1 max-w-2xl">{campaign.description}</p>}
           </div>
-          <button onClick={() => setShowAddClipper(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 flex-shrink-0">
-            <Plus className="w-4 h-4" /> Add Clipper
-          </button>
+          <div className="flex gap-2 flex-shrink-0">
+            <button onClick={handleRefreshAll} disabled={refreshing}
+              className="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+              <Zap className="w-4 h-4" /> {refreshing ? "Refreshing..." : "Refresh Views"}
+            </button>
+            <button onClick={() => setShowTopup(true)}
+              className="flex items-center gap-2 px-3 py-2 border border-green-200 text-green-700 rounded-lg text-sm font-medium hover:bg-green-50">
+              <Wallet className="w-4 h-4" /> Add Budget
+            </button>
+            <button onClick={() => setShowAddClipper(true)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
+              <Plus className="w-4 h-4" /> Add Clipper
+            </button>
+          </div>
         </div>
       </div>
 
@@ -874,6 +1116,7 @@ export default function CampaignDetail() {
       {tab === "submissions" && <SubmissionsTab campaignId={id} campaign={campaign} clippers={clippers} />}
       {tab === "leaderboard" && <LeaderboardTab campaignId={id} rewardRate={campaign.reward_per_1k_views} />}
       {tab === "analysis"    && <AnalysisTab campaignId={id} />}
+      {tab === "payouts"     && <PayoutsTab campaignId={id} />}
       {tab === "settings"    && <SettingsTab campaign={campaign} campaignId={id} />}
     </div>
   );

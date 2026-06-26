@@ -253,12 +253,30 @@ class ClipSubmission(Base):
     bot_flag                 = Column(String(20), default="clean")
     bot_reasons              = Column(Text, default="")        # JSON
 
+    # Payout tracking
+    payout_status            = Column(String(20), default="unpaid")  # unpaid | paid
+    payout_batch_id          = Column(Integer, ForeignKey("payout_batches.id"), nullable=True)
+
     last_checked_at          = Column(DateTime, nullable=True)
     submitted_at             = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     clipper                  = relationship("Clipper", back_populates="clips")
     snapshots                = relationship("ViewSnapshot", back_populates="clip",
                                             cascade="all, delete-orphan")
+
+
+class PayoutBatch(Base):
+    """A batch payout record grouping multiple approved clips."""
+    __tablename__ = "payout_batches"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    campaign_id    = Column(Integer, ForeignKey("campaigns.id"), index=True)
+    total_amount   = Column(Float, default=0.0)
+    clip_count     = Column(Integer, default=0)
+    clipper_count  = Column(Integer, default=0)
+    status         = Column(String(20), default="completed")  # completed | cancelled
+    notes          = Column(Text, default="")
+    created_at     = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class ViewSnapshot(Base):
