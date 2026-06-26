@@ -1,10 +1,12 @@
 """
 ContentCred email + Instagram DM templates.
 
-3 Creator Personas:
+5 Creator Personas:
   - musician          → tone: casual + emotional
   - video_creator     → tone: direct + hype
   - personal_brand    → tone: professional + ROI-focused
+  - streamer          → tone: gamer-casual + FOMO-driven
+  - business_coach    → tone: consultative + ROI/lead-gen focused
 
 5-step email sequence: Day 0, 3, 7, 11, 14
 4-step Instagram DM sequence: Day 0, 4, 8, 14
@@ -12,7 +14,7 @@ ContentCred email + Instagram DM templates.
 Placeholders:
   {name}         - creator's first name (or "there")
   {niche}        - their niche (e.g. "Hip-Hop", "Finance")
-  {platform}     - their main platform (e.g. "YouTube", "Spotify")
+  {platform}     - their main platform (e.g. "YouTube", "Spotify", "Twitch")
   {followers}    - formatted follower/listener count
   {calendly}     - Calendly booking link
   {sender_name}  - your name (Devvendar)
@@ -334,28 +336,253 @@ INSTAGRAM_DM = [
         "musician": "Hey {name}! Love the {niche} content. Quick question — are you pushing this to Reels/TikTok too? We help artists clip and distribute — curious what your setup looks like.",
         "video_creator": "Hey {name}! Your {platform} content is solid. Do you repurpose it for short-form? We do that for creators — clips from your existing videos pushed everywhere. Just curious if it's something you think about.",
         "personal_brand": "Hi {name} — your content in the {niche} space is really good. Do you have a short-form distribution strategy? That's what we help personal brands build. Happy to share more if you're curious.",
+        "streamer": "Hey {name}! Been watching some of your {platform} streams — some seriously clip-worthy moments in there. Do you repurpose your VODs for TikTok/Reels? We do that for streamers. Curious if it's on your radar.",
+        "business_coach": "Hi {name} — your content in the {niche} space is genuinely valuable. Are you repurposing it into short-form clips? That's how coaches like you are getting consistent inbound leads right now. Happy to share what we do if you're curious.",
     },
     # Step 1 – Day 4
     {
         "musician": "Hey! Following up — ContentCred does organic short-form distribution for {niche} artists. No ads, just your clips reaching new audiences. Worth a quick chat? {calendly}",
         "video_creator": "Following up on my last message, {name}. We clip {platform} videos into Reels + Shorts — your content keeps growing after upload. Want to see how it works? {calendly}",
         "personal_brand": "{name}, just following up! We work with personal brands in {niche} to build organic reach through short-form. 15-min call: {calendly}",
+        "streamer": "Hey {name}, following up! We clip {platform} VODs into short-form content and post them across TikTok, Reels & Shorts. Your streams keep growing even when you're offline. Worth a quick chat? {calendly}",
+        "business_coach": "Hi {name}, just following up! We help {niche} coaches turn their content into a short-form lead gen machine — clips from your existing videos pushed to TikTok, Reels, Shorts. 15-min call: {calendly}",
     },
     # Step 2 – Day 8
     {
         "musician": "{name} — one more shot! We've helped {niche} artists 2-3x their organic reach in 30 days with smart clipping. Campaign starts at $5K. Interested? {calendly}",
         "video_creator": "Hey {name}! Still think your content is a perfect fit for what we do. Short-form pipeline, organic growth, no paid ads. $5K/month. Worth 15 mins: {calendly}",
         "personal_brand": "Hi {name}, last nudge! ContentCred distributes your content across 3 platforms on autopilot. Great for personal brands in {niche}. Book here: {calendly}",
+        "streamer": "Hey {name}! Last nudge — your stream content deserves more eyeballs. We turn VODs into viral short-form clips. Starts at $5K/month, no paid ads. Worth 15 mins? {calendly}",
+        "business_coach": "{name}, one more! Coaches in {niche} using short-form clips are 2-4x their inbound leads. We build and run that system for you — starts at $5K/month. Worth 15 mins: {calendly}",
     },
     # Step 3 – Day 14 (soft close)
     {
         "musician": "Hey {name}! Last message — if growing your audience organically ever becomes a priority, we're here. {calendly}. All the best with the music!",
         "video_creator": "{name} — last one! If short-form distribution ever makes sense for your channel, reach out anytime. {calendly}. Keep creating!",
         "personal_brand": "{name} — wrapping up my outreach. If content distribution becomes a priority for your brand, I'd love to reconnect. {calendly}. Best of luck!",
+        "streamer": "{name} — last message from me! If clipping your streams ever becomes a priority, ContentCred is here. {calendly}. Keep grinding the streams!",
+        "business_coach": "{name} — wrapping up my outreach. If turning your content into inbound leads ever becomes a priority, I'd love to chat. {calendly}. Wishing you success with your coaching!",
     },
 ]
 
 DM_SEQUENCE_DAYS = [0, 4, 8, 14]
+
+
+# ─────────────────────────────────────────────────────────────────
+# STREAMER TEMPLATES (gamer-casual + FOMO-driven)
+# ─────────────────────────────────────────────────────────────────
+
+STREAMER_EMAIL = [
+    # Step 0 – Day 0
+    {
+        "subject": "{name}, your stream highlights are getting left behind",
+        "body": """\
+Hey {name},
+
+Caught some of your {platform} streams — the moments in there are genuinely clip-worthy. The kind of stuff that blows up on TikTok and YouTube Shorts if it's edited and posted right.
+
+That's exactly what ContentCred does. We watch your VODs, pull the best 60–90 second clips, add captions and hooks, and push them across TikTok, Reels, and Shorts consistently.
+
+Streamers we work with see 50K–300K views per clip in the first month — all organic, no ads.
+
+Would love to show you what this could look like for your content. Quick 15-minute call?
+
+{calendly}
+
+— {sender_name}, ContentCred
+""",
+    },
+    # Step 1 – Day 3
+    {
+        "subject": "Re: your stream clips",
+        "body": """\
+Hey {name},
+
+Just following up — wanted to make sure this didn't get buried.
+
+The short version: your streams are full of moments that belong on short-form. We clip them, edit them, and post them while you focus on streaming. Your content keeps working for you 24/7 instead of disappearing into the VOD archive.
+
+One streamer we work with went from 2K to 18K TikTok followers in 45 days — entirely from stream clips.
+
+Worth 15 minutes to see if it fits? {calendly}
+
+— {sender_name}
+""",
+    },
+    # Step 2 – Day 7
+    {
+        "subject": "honest question, {name}",
+        "body": """\
+{name},
+
+Real question: how much of your stream content is still getting views 2 weeks after you go live?
+
+For most streamers, the answer is close to zero. VODs get maybe 10–20% of your live audience, and then they sit there.
+
+Short-form clips change that. The right moment from last Tuesday's stream can hit 100K views on TikTok next month — if someone's pulling and posting them consistently.
+
+That's what we do. {niche} streamers are our sweet spot. Happy to walk you through exactly what we'd do with your content.
+
+15 minutes: {calendly}
+
+— {sender_name}, ContentCred
+""",
+    },
+    # Step 3 – Day 11
+    {
+        "subject": "what ContentCred looks like for a {niche} streamer",
+        "body": """\
+Hey {name},
+
+Let me be concrete about what working together would look like:
+
+Week 1  — We audit your last month of VODs, identify your 15 best moments
+Week 2  — First batch of clips edited, captioned, and posted across TikTok, Reels, Shorts
+Week 3+ — Consistent posting cadence (5–7 clips/week), performance tracking, hook testing
+
+Average outcome after 30 days: 3–8x your current short-form reach with zero extra work from you.
+
+Investment starts at $5K/month. Most streamers recoup this through brand deal rate increases within 60 days.
+
+If you want to talk through the numbers: {calendly}
+
+— {sender_name}
+""",
+    },
+    # Step 4 – Day 14
+    {
+        "subject": "last message, {name}",
+        "body": """\
+{name},
+
+Last one from me — I know your inbox doesn't need more noise.
+
+If turning your stream VODs into a short-form growth engine ever becomes a priority, ContentCred is the team to call. We work with {niche} streamers specifically, and the results speak for themselves.
+
+You can book directly whenever it makes sense: {calendly}
+
+Good luck with the streams.
+
+— {sender_name}
+ContentCred
+""",
+    },
+]
+
+
+# ─────────────────────────────────────────────────────────────────
+# BUSINESS COACH TEMPLATES (consultative + ROI/lead-gen focused)
+# ─────────────────────────────────────────────────────────────────
+
+BUSINESS_COACH_EMAIL = [
+    # Step 0 – Day 0
+    {
+        "subject": "more inbound leads from content you already have, {name}",
+        "body": """\
+Hi {name},
+
+I came across your work in the {niche} space — the content you're putting out is strong and clearly positions you as an authority.
+
+Here's the opportunity most coaches miss: your long-form content (podcasts, webinars, YouTube videos) contains dozens of short-form clips that would drive consistent inbound leads on Instagram, TikTok, and YouTube Shorts. Right now that content is reaching a fraction of the people it should.
+
+ContentCred handles the entire distribution side — we clip, caption, and post consistently so your expertise reaches a new audience every week without any extra work from you.
+
+Coaches in the {niche} space typically see 2–4x their inbound inquiry rate within 60 days.
+
+Would you be open to a 15-minute call to explore if this is a fit?
+
+{calendly}
+
+Best,
+{sender_name}
+ContentCred
+""",
+    },
+    # Step 1 – Day 3
+    {
+        "subject": "Re: content distribution for {name}",
+        "body": """\
+Hi {name},
+
+Following up on my last message — keeping this brief.
+
+Most coaches we speak to are great at creating content but inconsistent at distributing it across short-form platforms. That inconsistency is the growth ceiling.
+
+ContentCred solves that specifically:
+— We clip your best teaching moments into 60–90 second videos
+— Post 5–7 times per week across Instagram Reels, TikTok, and YouTube Shorts
+— Every post is an entry point for a new potential client to discover you
+
+No ads. No extra content creation. Just your existing expertise reaching more people.
+
+Happy to share specifics on a quick call: {calendly}
+
+— {sender_name}
+""",
+    },
+    # Step 2 – Day 7
+    {
+        "subject": "the real cost of not repurposing your content, {name}",
+        "body": """\
+{name},
+
+One thing I've noticed working with coaches in the {niche} space: the ones growing fastest in 2025 aren't necessarily creating the most content. They're distributing it better.
+
+A single strong webinar or podcast episode can produce 8–12 short-form clips. If those are posted consistently over 4 weeks, you're looking at 40–80 touchpoints with your ideal audience from one piece of content you already made.
+
+ContentCred builds and runs that system for you. The coaches we work with typically see their inbound inquiries increase 2–4x within the first 60 days.
+
+If that kind of leverage on your existing content is interesting, 15 minutes is all we need: {calendly}
+
+{sender_name} | ContentCred
+""",
+    },
+    # Step 3 – Day 11
+    {
+        "subject": "what a ContentCred campaign looks like for a {niche} coach",
+        "body": """\
+Hi {name},
+
+I want to be specific about what working together would look like for your business:
+
+Month 1:
+— Content audit of your existing videos, podcasts, and webinars
+— 15–20 clips produced and distributed across Instagram Reels, TikTok, YouTube Shorts
+— Weekly performance reports on reach, engagement, and follower growth
+
+Month 2–3:
+— Double down on the clip formats driving the most profile visits and inquiries
+— Increase posting cadence as we identify what resonates with your ideal client
+— Full short-form pipeline running on autopilot
+
+Investment: from $5,000/month
+Typical result: 2–4x inbound inquiry rate, measurable growth in authority and brand reach
+
+If the numbers make sense for your business, let's talk: {calendly}
+
+— {sender_name}, ContentCred
+""",
+    },
+    # Step 4 – Day 14
+    {
+        "subject": "wrapping up my outreach, {name}",
+        "body": """\
+{name},
+
+This is my final follow-up — I don't want to be another email clogging your inbox.
+
+If leveraging your existing content to drive more inbound clients ever becomes a priority, ContentCred is built exactly for that. We'd love to work with someone doing what you're doing in the {niche} space.
+
+You can book a call here at any point: {calendly}
+
+Wishing you continued success with your coaching business.
+
+Best,
+{sender_name}
+ContentCred
+""",
+    },
+]
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -371,6 +598,8 @@ def get_email_template(persona: str, step: int) -> dict:
         "musician":       MUSICIAN_EMAIL,
         "video_creator":  VIDEO_CREATOR_EMAIL,
         "personal_brand": PERSONAL_BRAND_EMAIL,
+        "streamer":       STREAMER_EMAIL,
+        "business_coach": BUSINESS_COACH_EMAIL,
     }
     templates = mapping.get(persona, VIDEO_CREATOR_EMAIL)
     if step >= len(templates):
@@ -380,12 +609,8 @@ def get_email_template(persona: str, step: int) -> dict:
 
 def get_dm_template(persona: str, step: int) -> str:
     """Return DM text for given persona and step index (0-3)."""
-    mapping = {
-        "musician":       "musician",
-        "video_creator":  "video_creator",
-        "personal_brand": "personal_brand",
-    }
-    key = mapping.get(persona, "video_creator")
+    valid_keys = {"musician", "video_creator", "personal_brand", "streamer", "business_coach"}
+    key = persona if persona in valid_keys else "video_creator"
     if step >= len(INSTAGRAM_DM):
         return INSTAGRAM_DM[-1][key]
     return INSTAGRAM_DM[step][key]
@@ -415,6 +640,8 @@ def render_email(persona: str, step: int, creator: dict, sender_name: str, calen
         "spotify":   "Spotify",
         "instagram": "Instagram",
         "tiktok":    "TikTok",
+        "twitch":    "Twitch",
+        "kick":      "Kick",
     }
     platform = platform_map.get(creator.get("primary_platform", ""), "platform")
 
@@ -441,6 +668,8 @@ def render_dm(persona: str, step: int, creator: dict, sender_name: str, calendly
         "spotify":   "Spotify",
         "instagram": "Instagram",
         "tiktok":    "TikTok",
+        "twitch":    "Twitch",
+        "kick":      "Kick",
     }
     platform = platform_map.get(creator.get("primary_platform", ""), "your platform")
     return tmpl.format(
