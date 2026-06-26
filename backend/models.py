@@ -3,6 +3,7 @@ ContentCred CRM — SQLAlchemy models
 Tracks creators across YouTube, Spotify, Instagram, and TikTok.
 """
 
+import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime,
@@ -146,83 +147,127 @@ class DmLog(Base):
 # ── Clipping Campaigns ────────────────────────────────────────────
 
 class Campaign(Base):
-    """A clipping campaign — clippers post clips and earn rewards per view."""
+    """
+    A content-rewards campaign. Brands set a budget and CPM; clippers submit
+    clips and earn based on verified organic views.
+    """
     __tablename__ = "campaigns"
 
-    id                  = Column(Integer, primary_key=True, index=True)
-    name                = Column(String(200), default="")
-    description         = Column(Text, default="")
-    status              = Column(String(20), default="active")   # active | paused | ended
-    platform            = Column(String(20), default="tiktok")   # tiktok | instagram | youtube | any
-    reward_per_1k_views = Column(Float, default=0.0)             # USD per 1 000 views
-    target_views        = Column(Integer, default=0)
-    start_date          = Column(DateTime, nullable=True)
-    end_date            = Column(DateTime, nullable=True)
-    created_at          = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at          = Column(DateTime, default=lambda: datetime.now(timezone.utc),
-                                 onupdate=lambda: datetime.now(timezone.utc))
+    id                       = Column(Integer, primary_key=True, index=True)
+    name                     = Column(String(200), default="")
+    content_type             = Column(String(20), default="clipping")   # clipping | ugc | other
+    category                 = Column(String(100), default="")
+    description              = Column(Text, default="")
+    guidelines               = Column(Text, default="")
+    tutorial_video_url       = Column(String(500), default="")
 
-    clippers            = relationship("Clipper", back_populates="campaign", cascade="all, delete-orphan")
+    status                   = Column(String(20), default="active")   # active | paused | ended
+
+    # Allowed platforms — stored as JSON list string e.g. '["tiktok","instagram"]'
+    allowed_platforms        = Column(Text, default='["tiktok","instagram","youtube"]')
+
+    # Economics (budget & rate locked after first submission)
+    budget                   = Column(Float, default=0.0)
+    budget_spent             = Column(Float, default=0.0)
+    reward_per_1k_views      = Column(Float, default=0.0)   # CPM in USD
+    flat_fee                 = Column(Float, default=0.0)   # bonus per submission (locked)
+    min_payout               = Column(Float, default=0.0)   # min $ before submission counts
+    max_payout_per_submission= Column(Float, default=0.0)   # 0 = no cap
+
+    # Dates
+    start_date               = Column(DateTime, nullable=True)
+    end_date                 = Column(DateTime, nullable=True)
+
+    # Public submission link token
+    submission_token         = Column(String(64), unique=True, index=True,
+                                      default=lambda: uuid.uuid4().hex)
+
+    # Auto-approve window (hours); 0 = manual only
+    auto_approve_hours       = Column(Integer, default=48)
+
+    created_at               = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at               = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                                      onupdate=lambda: datetime.now(timezone.utc))
+
+    clippers                 = relationship("Clipper", back_populates="campaign",
+                                            cascade="all, delete-orphan")
 
 
 class Clipper(Base):
-    """A person participating in a campaign — submits clips from their accounts."""
+    """A person participating in a campaign."""
     __tablename__ = "clippers"
 
     id                  = Column(Integer, primary_key=True, index=True)
     campaign_id         = Column(Integer, ForeignKey("campaigns.id"), index=True)
 
     name                = Column(String(200), default="")
-    email               = Column(String(200), default="")
+    email               = Column(String(200), default="", index=True)
     tiktok_handle       = Column(String(100), default="")
     instagram_handle    = Column(String(100), default="")
     youtube_handle      = Column(String(100), default="")
-    status              = Column(String(20), default="active")   # active | inactive | banned
+    twitter_handle      = Column(String(100), default="")
 
+    status              = Column(String(20), default="active")   # active | inactive
+    is_banned           = Column(Boolean, default=False)
+    total_earnings      = Column(Float, default=0.0)
     notes               = Column(Text, default="")
     created_at          = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     campaign            = relationship("Campaign", back_populates="clippers")
-    clips               = relationship("ClipSubmission", back_populates="clipper", cascade="all, delete-orphan")
+    clips               = relationship("ClipSubmission", back_populates="clipper",
+                                       cascade="all, delete-orphan")
 
 
 class ClipSubmission(Base):
-    """A single clip URL submitted by a clipper for a campaign."""
+    """A single clip/post submitted by a clipper for a campaign."""
     __tablename__ = "clip_submissions"
 
-    id                  = Column(Integer, primary_key=True, index=True)
-    clipper_id          = Column(Integer, ForeignKey("clippers.id"), index=True)
-    campaign_id         = Column(Integer, ForeignKey("campaigns.id"), index=True)
+    id                       = Column(Integer, primary_key=True, index=True)
+    clipper_id               = Column(Integer, ForeignKey("clippers.id"), index=True)
+    campaign_id              = Column(Integer, ForeignKey("campaigns.id"), index=True)
 
-    url                 = Column(String(500), default="")
-    platform            = Column(String(20), default="tiktok")   # tiktok | instagram | youtube
-    title               = Column(String(300), default="")
+    url                      = Column(String(500), default="")
+    platform                 = Column(String(20), default="tiktok")  # tiktok|instagram|youtube|twitter
+    title                    = Column(String(300), default="")
 
-    # View & engagement metrics
-    current_views       = Column(Integer, default=0)
-    likes               = Column(Integer, default=0)
-    comments            = Column(Integer, default=0)
-    shares              = Column(Integer, default=0)
+    # Engagement metrics (updated manually or via scrape)
+    current_views            = Column(Integer, default=0)
+    likes                    = Column(Integer, default=0)
+    comments                 = Column(Integer, default=0)
+    shares                   = Column(Integer, default=0)
+
+    # Approval workflow
+    # pending | approved | flagged | rejected
+    approval_status          = Column(String(20), default="pending", index=True)
+    rejection_reason         = Column(Text, default="")
+    ban_clipper              = Column(Boolean, default=False)
+    approved_at              = Column(DateTime, nullable=True)
+    auto_approve_at          = Column(DateTime, nullable=True)  # deadline before auto-approve kicks in
+
+    # Earnings (set at approval time)
+    earnings                 = Column(Float, default=0.0)
+    views_at_approval        = Column(Integer, default=0)
 
     # Bot detection
-    bot_score           = Column(Integer, default=0)      # 0-100, higher = more suspicious
-    bot_flag            = Column(String(20), default="clean")  # clean | monitor | suspicious | botted
-    bot_reasons         = Column(Text, default="")        # JSON list of reason strings
+    bot_score                = Column(Integer, default=0)      # 0–100
+    bot_flag                 = Column(String(20), default="clean")
+    bot_reasons              = Column(Text, default="")        # JSON
 
-    last_checked_at     = Column(DateTime, nullable=True)
-    submitted_at        = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_checked_at          = Column(DateTime, nullable=True)
+    submitted_at             = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    clipper             = relationship("Clipper", back_populates="clips")
-    snapshots           = relationship("ViewSnapshot", back_populates="clip", cascade="all, delete-orphan")
+    clipper                  = relationship("Clipper", back_populates="clips")
+    snapshots                = relationship("ViewSnapshot", back_populates="clip",
+                                            cascade="all, delete-orphan")
 
 
 class ViewSnapshot(Base):
     """Point-in-time view count snapshot for a clip."""
     __tablename__ = "view_snapshots"
 
-    id                  = Column(Integer, primary_key=True, index=True)
-    clip_id             = Column(Integer, ForeignKey("clip_submissions.id"), index=True)
-    views               = Column(Integer, default=0)
-    recorded_at         = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    id          = Column(Integer, primary_key=True, index=True)
+    clip_id     = Column(Integer, ForeignKey("clip_submissions.id"), index=True)
+    views       = Column(Integer, default=0)
+    recorded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    clip                = relationship("ClipSubmission", back_populates="snapshots")
+    clip        = relationship("ClipSubmission", back_populates="snapshots")

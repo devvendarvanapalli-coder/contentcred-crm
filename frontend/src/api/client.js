@@ -35,11 +35,22 @@ export const getClips        = (cid, clid) => api.get(`/campaigns/${cid}/clipper
 export const addClip         = (cid, clid, data) => api.post(`/campaigns/${cid}/clippers/${clid}/clips`, data).then(r => r.data);
 export const updateClipMetrics = (cid, clid, clipId, metrics) =>
   api.patch(`/campaigns/${cid}/clippers/${clid}/clips/${clipId}`, metrics).then(r => r.data);
-export const updateClipViews = (cid, clid, clipId, views) =>
-  api.patch(`/campaigns/${cid}/clippers/${clid}/clips/${clipId}`, { current_views: views }).then(r => r.data);
 export const deleteClip      = (cid, clid, clipId) =>
   api.delete(`/campaigns/${cid}/clippers/${clid}/clips/${clipId}`).then(r => r.data);
 export const getClipHistory  = (cid, clid, clipId) =>
   api.get(`/campaigns/${cid}/clippers/${clid}/clips/${clipId}/history`).then(r => r.data);
-export const getAllCampaignClips = (cid, flag) => api.get(`/campaigns/${cid}/clips`, { params: flag ? { flag } : {} }).then(r => r.data);
-export const getCampaignAnalysis = (cid) => api.get(`/campaigns/${cid}/analysis`).then(r => r.data);
+
+// ── Submissions (approval workflow) ───────────────────────────────
+export const getSubmissions    = (cid, status) => api.get(`/campaigns/${cid}/submissions`, { params: status ? { status } : {} }).then(r => r.data);
+export const approveSubmission = (cid, clipId) => api.post(`/campaigns/${cid}/submissions/${clipId}/approve`).then(r => r.data);
+export const rejectSubmission  = (cid, clipId, reason, ban) => api.post(`/campaigns/${cid}/submissions/${clipId}/reject`, { reason, ban_clipper: ban }).then(r => r.data);
+export const flagSubmission    = (cid, clipId, reason) => api.post(`/campaigns/${cid}/submissions/${clipId}/flag`, { reason }).then(r => r.data);
+
+// ── Leaderboard & Analysis ─────────────────────────────────────────
+export const getLeaderboard     = (cid) => api.get(`/campaigns/${cid}/leaderboard`).then(r => r.data);
+export const getCampaignAnalysis= (cid) => api.get(`/campaigns/${cid}/analysis`).then(r => r.data);
+
+// ── Public ────────────────────────────────────────────────────────
+export const getDiscover       = () => api.get("/campaigns/discover/list").then(r => r.data);
+export const getPublicCampaign = (token) => api.get(`/campaigns/public/${token}`).then(r => r.data);
+export const publicSubmit      = (token, data) => api.post(`/campaigns/public/${token}/submit`, data).then(r => r.data);
