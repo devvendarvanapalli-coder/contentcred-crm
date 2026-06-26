@@ -33,10 +33,13 @@ export const deleteClipper   = (cid, clid) => api.delete(`/campaigns/${cid}/clip
 
 export const getClips        = (cid, clid) => api.get(`/campaigns/${cid}/clippers/${clid}/clips`).then(r => r.data);
 export const addClip         = (cid, clid, data) => api.post(`/campaigns/${cid}/clippers/${clid}/clips`, data).then(r => r.data);
+export const updateClipMetrics = (cid, clid, clipId, metrics) =>
+  api.patch(`/campaigns/${cid}/clippers/${clid}/clips/${clipId}`, metrics).then(r => r.data);
 export const updateClipViews = (cid, clid, clipId, views) =>
   api.patch(`/campaigns/${cid}/clippers/${clid}/clips/${clipId}`, { current_views: views }).then(r => r.data);
 export const deleteClip      = (cid, clid, clipId) =>
   api.delete(`/campaigns/${cid}/clippers/${clid}/clips/${clipId}`).then(r => r.data);
 export const getClipHistory  = (cid, clid, clipId) =>
   api.get(`/campaigns/${cid}/clippers/${clid}/clips/${clipId}/history`).then(r => r.data);
-export const getAllCampaignClips = (cid) => api.get(`/campaigns/${cid}/clips`).then(r => r.data);
+export const getAllCampaignClips = (cid, flag) => api.get(`/campaigns/${cid}/clips`, { params: flag ? { flag } : {} }).then(r => r.data);
+export const getCampaignAnalysis = (cid) => api.get(`/campaigns/${cid}/analysis`).then(r => r.data);

@@ -198,7 +198,17 @@ class ClipSubmission(Base):
     platform            = Column(String(20), default="tiktok")   # tiktok | instagram | youtube
     title               = Column(String(300), default="")
 
+    # View & engagement metrics
     current_views       = Column(Integer, default=0)
+    likes               = Column(Integer, default=0)
+    comments            = Column(Integer, default=0)
+    shares              = Column(Integer, default=0)
+
+    # Bot detection
+    bot_score           = Column(Integer, default=0)      # 0-100, higher = more suspicious
+    bot_flag            = Column(String(20), default="clean")  # clean | monitor | suspicious | botted
+    bot_reasons         = Column(Text, default="")        # JSON list of reason strings
+
     last_checked_at     = Column(DateTime, nullable=True)
     submitted_at        = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
