@@ -141,3 +141,78 @@ class DmLog(Base):
     replied_at       = Column(DateTime, nullable=True)
 
     creator          = relationship("Creator", back_populates="dm_logs")
+
+
+# ── Clipping Campaigns ────────────────────────────────────────────
+
+class Campaign(Base):
+    """A clipping campaign — clippers post clips and earn rewards per view."""
+    __tablename__ = "campaigns"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    name                = Column(String(200), default="")
+    description         = Column(Text, default="")
+    status              = Column(String(20), default="active")   # active | paused | ended
+    platform            = Column(String(20), default="tiktok")   # tiktok | instagram | youtube | any
+    reward_per_1k_views = Column(Float, default=0.0)             # USD per 1 000 views
+    target_views        = Column(Integer, default=0)
+    start_date          = Column(DateTime, nullable=True)
+    end_date            = Column(DateTime, nullable=True)
+    created_at          = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at          = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+                                 onupdate=lambda: datetime.now(timezone.utc))
+
+    clippers            = relationship("Clipper", back_populates="campaign", cascade="all, delete-orphan")
+
+
+class Clipper(Base):
+    """A person participating in a campaign — submits clips from their accounts."""
+    __tablename__ = "clippers"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    campaign_id         = Column(Integer, ForeignKey("campaigns.id"), index=True)
+
+    name                = Column(String(200), default="")
+    email               = Column(String(200), default="")
+    tiktok_handle       = Column(String(100), default="")
+    instagram_handle    = Column(String(100), default="")
+    youtube_handle      = Column(String(100), default="")
+    status              = Column(String(20), default="active")   # active | inactive | banned
+
+    notes               = Column(Text, default="")
+    created_at          = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    campaign            = relationship("Campaign", back_populates="clippers")
+    clips               = relationship("ClipSubmission", back_populates="clipper", cascade="all, delete-orphan")
+
+
+class ClipSubmission(Base):
+    """A single clip URL submitted by a clipper for a campaign."""
+    __tablename__ = "clip_submissions"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    clipper_id          = Column(Integer, ForeignKey("clippers.id"), index=True)
+    campaign_id         = Column(Integer, ForeignKey("campaigns.id"), index=True)
+
+    url                 = Column(String(500), default="")
+    platform            = Column(String(20), default="tiktok")   # tiktok | instagram | youtube
+    title               = Column(String(300), default="")
+
+    current_views       = Column(Integer, default=0)
+    last_checked_at     = Column(DateTime, nullable=True)
+    submitted_at        = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    clipper             = relationship("Clipper", back_populates="clips")
+    snapshots           = relationship("ViewSnapshot", back_populates="clip", cascade="all, delete-orphan")
+
+
+class ViewSnapshot(Base):
+    """Point-in-time view count snapshot for a clip."""
+    __tablename__ = "view_snapshots"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    clip_id             = Column(Integer, ForeignKey("clip_submissions.id"), index=True)
+    views               = Column(Integer, default=0)
+    recorded_at         = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    clip                = relationship("ClipSubmission", back_populates="snapshots")
