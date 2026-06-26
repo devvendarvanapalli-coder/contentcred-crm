@@ -1,12 +1,13 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, Mail, BarChart2, Settings, Zap } from "lucide-react";
+import { LayoutDashboard, Users, Mail, BarChart2, Settings, Zap, Clapperboard } from "lucide-react";
 
 const nav = [
-  { to: "/",          label: "Dashboard",  icon: LayoutDashboard },
-  { to: "/creators",  label: "Creators",   icon: Users },
-  { to: "/sequences", label: "Sequences",  icon: Mail },
-  { to: "/analytics", label: "Analytics",  icon: BarChart2 },
-  { to: "/settings",  label: "Settings",   icon: Settings },
+  { to: "/",           label: "Dashboard",  icon: LayoutDashboard },
+  { to: "/creators",   label: "Creators",   icon: Users },
+  { to: "/campaigns",  label: "Campaigns",  icon: Clapperboard },
+  { to: "/sequences",  label: "Sequences",  icon: Mail },
+  { to: "/analytics",  label: "Analytics",  icon: BarChart2 },
+  { to: "/settings",   label: "Settings",   icon: Settings },
 ];
 
 export default function Sidebar() {

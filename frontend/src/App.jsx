@@ -5,6 +5,8 @@ import Creators from "./pages/Creators";
 import Sequences from "./pages/Sequences";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
+import Campaigns from "./pages/Campaigns";
+import CampaignDetail from "./pages/CampaignDetail";
 
 export default function App() {
   return (
@@ -17,6 +19,8 @@ export default function App() {
           <Route path="/sequences" element={<Sequences />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/campaigns" element={<Campaigns />} />
+          <Route path="/campaigns/:id" element={<CampaignDetail />} />
         </Routes>
       </main>
     </div>
